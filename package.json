@@ -1,0 +1,17 @@
+{
+  "name": "sam-webflow-sync",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/rupertparry/sam-webflow-sync.git",
+  "author": "Rupert Parry <rp@rupert.cloud>",
+  "license": "MIT",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "node-fetch": "2"
+  },
+  "devDependencies": {
+    "dotenv": "^16.0.1"
+  }
+}
