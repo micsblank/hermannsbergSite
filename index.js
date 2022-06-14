@@ -25,36 +25,16 @@ const getHeaders = {
   'Accept-Version': '1.0.0'
 }
 
-const myArtwork = {
-  name: 'Test Artwork',
-  description: 'My artwork',
-  price: 12500,
-  artist: 'My Artist',
-  imageUrl: 'https://royaldesign.com/image/11/knabstrup-keramik-earth-vase-vit-2?w=2560&quality=80'
-}
-
-
 async function main() {
   const artworks = await getArtworks()
-  console.log(artworks)
   const names = await getWebflowArtworkNames()
+  const filteredArtworks = artworks.filter(artwork => !names.includes(formatTitle(artwork.StoryTitle)))
+  const formattedArtworks = formatArtworks(filteredArtworks)
 
-  artworks
-    .filter(artwork => !names.includes(artwork.StoryTitle))
-    .map(artwork => {
-      const imageUrl = artwork.images ? artwork.images[0] : ''
-      return {
-        name: artwork.StoryTitle.replace('(', '').replace(')', ''),
-        description: artwork.StoryNarrative.replace('<p>', '').replace('</p>', ''),
-        price: artwork.SaleAmount * 100,
-        artist: artwork.Firstname + ' ' + artwork.Surname,
-        imageUrl: imageUrl
-      }
-    })
-    .forEach((artwork) => {
-      console.log(`Updating artwork: ${artwork.name}...`)
-      updateWebflow(artwork)
-    })
+  formattedArtworks.forEach((artwork) => {
+    console.log(`Updating artwork: ${artwork.name}...`)
+    updateWebflow(artwork)
+  })
 }
 main()
 
@@ -64,12 +44,30 @@ async function getArtworks() {
   return json.artworks
 }
 
-async function getWebflowArtworkNames(siteId) {
+async function getWebflowArtworkNames() {
   const url = `${webflowUrl}/sites/${webflowSiteID}/products`
   const res = await fetch(url, { method: 'GET', headers: getHeaders })
   const json = await res.json()
   const names = json.items.map(i => i.product.name)
   return names
+}
+
+function formatArtworks(artworks) {
+  return artworks
+    .map(artwork => {
+      const imageUrl = artwork['Images'] ? artwork['Images'][0]['variants'][0]['URL'] : ''
+      return {
+        name: formatTitle(artwork.StoryTitle),
+        description: artwork.StoryNarrative.replace('<p>', '').replace('</p>', ''),
+        price: artwork.SaleAmount * 100,
+        artist: artwork.Firstname + ' ' + artwork.Surname,
+        imageUrl: imageUrl
+      }
+    })
+}
+
+function formatTitle(title) {
+  return title.replace('(', '').replace(')', '')
 }
 
 async function updateWebflow(artwork) {
@@ -106,7 +104,7 @@ async function updateWebflow(artwork) {
         "name": artwork.name,
         "slug": slug,
         "sku-values": {},
-        "main-image": "https://royaldesign.com/image/11/knabstrup-keramik-earth-vase-vit-2?w=2560&quality=80",
+        "main-image": artwork.imageUrl,
         "price": {
           "unit": "AUD",
           "value": artwork.price
