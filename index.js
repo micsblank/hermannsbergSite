@@ -58,7 +58,15 @@ function formatArtworks(artworks) {
   return artworks
     .map(artwork => {
       const imageUrl = artwork['Images'] ? artwork['Images'][0]['variants'][0]['URL'] : ''
-      let desc = artwork.StoryNarrative.replace('<p>', '').replace('</p>', '')
+      let desc = artwork.StoryNarrative
+
+      desc = desc.replace('<p>', '').replace('</p>', '')
+      desc = desc.replace('<br>', '').replace('<br />', '').replace('<br/>', '')
+      desc = desc.replace('<b>', '').replace('</b>', '')
+      desc = desc.replace('<strong>', '').replace('</strong>', '')
+      desc = desc.replace('<i>', '').replace('</i>', '')
+      desc = desc.replace('<em>', '').replace('</em>', '')
+
       if (artwork.Medium && artwork.ArtworkSize) {
         desc = desc + ` (${artwork.Medium}, ${artwork.ArtworkSize})`
       }
