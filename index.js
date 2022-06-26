@@ -30,8 +30,6 @@ async function main() {
   const names = await getWebflowArtworkNames()
   const filteredArtworks = artworks.filter(artwork => !names.includes(formatTitle(artwork.StoryTitle)))
   const formattedArtworks = formatArtworks(filteredArtworks)
-  console.log('Updating artworks...')
-  console.log(formattedArtworks)
 
   formattedArtworks.forEach((artwork) => {
     console.log(`Updating artwork: ${artwork.name}...`)
@@ -66,6 +64,7 @@ function formatArtworks(artworks) {
       desc = desc.replace('<strong>', '').replace('</strong>', '')
       desc = desc.replace('<i>', '').replace('</i>', '')
       desc = desc.replace('<em>', '').replace('</em>', '')
+      desc = desc.replace('&nbsp;', ' ')
 
       if (artwork.Medium && artwork.ArtworkSize) {
         desc = desc + ` (${artwork.Medium}, ${artwork.ArtworkSize})`
@@ -82,7 +81,7 @@ function formatArtworks(artworks) {
 }
 
 function formatTitle(title) {
-  return title.replace('(', '').replace(')', '')
+  return title.replace('(', '').replace(')', '').replace(',', '')
 }
 
 async function updateWebflow(artwork) {
