@@ -1,12 +1,6 @@
 const { WebflowClient } = require("webflow-api");
 require('dotenv').config();
 const fetch = require("node-fetch");
-const express = require('express');
-
-
-// Express app setup
-const app = express();
-app.use(express.json());
 
 // Constants
 const samUrl = 'https://dev.api.symbuild.com.au/api';
@@ -14,16 +8,8 @@ const webflowUrl = 'https://api.webflow.com';
 const webflowSiteID = process.env.WEBFLOW_SITE_ID;
 const webflowKey = process.env.WEBFLOW_KEY;
 const samKey = process.env.SAM_KEY;
-const webFlowSamGetOrder = process.env.SAM_API_FROM_WEBFLOW;
 
-// Initialize Webflow client
-const client = new WebflowClient({ accessToken: webFlowSamGetOrder });
-
-// Authentication headers
-const samSimpleAuth = {
-  'Authorization': 'Basic ' + Buffer.from('MicaelaB:Claypot101').toString('base64'),
-};
-
+// Headers for API requests
 const samGetHeaders = {
   'Authorization': `Bearer ${samKey}`,
   'Content-Type': 'application/json'
@@ -40,157 +26,6 @@ const getHeaders = {
   'Authorization': `Bearer ${webflowKey}`,
   'Accept-Version': '1.0.0'
 };
-
-async function setupWebflowWebhook() {
-  try {
-    await client.webhooks.create(webflowSiteID, {
-      triggerType: "ecomm_new_order",
-      url: `${process.env.WEBHOOK_URL}/webhook`  // Make sure to set WEBHOOK_URL in .env
-    });
-    console.log("Webhook created successfully.");
-  } catch (error) {
-    console.error("Error creating webhook:", error);
-  }
-}
-
-async function login() {
-  const res = await fetch(`${samUrl}/v1/auth/login`, {
-    method: 'POST',
-    headers: samSimpleAuth,
-    body: JSON.stringify({})
-  });
-  const json = await res.json();
-  return json.token;
-}
-
-async function createCustomer(orderData) {
-  try {
-    const { customerInfo, shippingAddress, billingAddress } = orderData;
-    const nameParts = customerInfo.fullName.split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-
-    // Prepare address object
-    const addressObject = {
-      address: shippingAddress.address1,
-      type: "SHIPPING",
-      is_default: true,
-      suburb: shippingAddress.city,
-      state: shippingAddress.state,
-      postcode: shippingAddress.zipCode
-    };
-
-    // If billing address is different, add it too
-    const addresses = [addressObject];
-    if (billingAddress && billingAddress.address1 !== shippingAddress.address1) {
-      addresses.push({
-        address: billingAddress.address1,
-        type: "BILLING",
-        is_default: false,
-        suburb: billingAddress.city,
-        state: billingAddress.state,
-        postcode: billingAddress.zipCode
-      });
-    }
-
-    const customerPayload = {
-      institute_type: "retail",
-      name_of_institute: "Hermannsberg Pottery", // Default institute name
-      contacts: [
-        {
-          contact_type: "CUSTOMER",
-          first_name: firstName,
-          last_name: lastName,
-          email: customerInfo.email,
-          phone_mobile: customerInfo.phone || "",
-          is_licensor: false,
-          is_purchased_online: true,
-          is_main_contact: true,
-          addresses: addresses
-        }
-      ]
-    };
-
-    const response = await fetch(`${samUrl}/v1/customer`, {
-      method: 'POST',
-      headers: {
-        ...samGetHeaders,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(customerPayload)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      throw new Error(`Failed to create customer: ${errorData}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error creating customer:', error);
-    throw error;
-  }
-}
-
-async function createOrderInSAM(orderData, customerResponse) {
-  try {
-    const orderPayload = {
-      customer_id: customerResponse.id,
-      order_date: new Date().toISOString(),
-      items: orderData.items.map(item => ({
-        inventory_id: item.product.inventory_id,
-        quantity: item.quantity,
-        unit_price: parseFloat(item.price)
-      })),
-      payment_method: orderData.paymentMethod || "ONLINE",
-      order_status: 'CONFIRMED'
-    };
-
-    const response = await fetch(`${samUrl}/v1/transactions/sales/order`, {
-      method: 'POST',
-      headers: samGetHeaders,
-      body: JSON.stringify(orderPayload)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to create order in SAM: ${await response.text()}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error creating order:', error);
-    throw error;
-  }
-}
-
-async function handleNewOrderWebhook(req, res) {
-  try {
-    console.log('Received webhook from Webflow:', req.body);
-    
-    // Create customer first
-    const customerResponse = await createCustomer(req.body);
-    console.log('Customer created in SAM:', customerResponse);
-    
-    // Create order in SAM
-    const orderResponse = await createOrderInSAM(req.body, customerResponse);
-    console.log('Order created in SAM:', orderResponse);
-    
-    res.status(200).json({
-      message: 'Order processed successfully',
-      customerId: customerResponse.id,
-      orderId: orderResponse.id
-    });
-  } catch (error) {
-    console.error('Error handling webhook:', error);
-    res.status(500).json({
-      error: 'Error processing order',
-      details: error.message
-    });
-  }
-}
-
-// Your existing getArtworks, formatArtworks, and updateWebflow functions here...
-// [Previous implementation remains the same]
 
 async function getArtworks(token) {
   try {
@@ -267,13 +102,6 @@ async function getWebflowArtworks() {
 function formatArtworks(artworks) {
   return artworks
     .filter(artwork => {
-      console.log("online:", artwork.enable_online_store)
-      console.log(artwork);
-      // if (!artwork.enable_online_store) {
-      //   console.log(`Skipping ${artwork.catalogue_no} - online store not enabled`);
-      //   return false;
-      // }
-
       if (!artwork || artwork.inventory_type === 'OTHER') {
         console.log(`Skipping non-artwork item: ${artwork?.catalogue_no}`);
         return false;
@@ -284,7 +112,6 @@ function formatArtworks(artworks) {
         return false;
       }
 
-      // Check if the artwork has a valid price
       const priceInfo = artwork.price_list[0];
       if (!priceInfo.retail_price || isNaN(parseFloat(priceInfo.retail_price))) {
         console.log(`Skipping artwork with invalid price: ${artwork.catalogue_no}`);
@@ -295,31 +122,22 @@ function formatArtworks(artworks) {
     })
     .map(artwork => {
       try {
-
-        
-        
-        // Get the retail price info
         const priceInfo = artwork.price_list[0];
         const price = parseFloat(priceInfo.retail_price) * 100;
         
-        // Ensure price is valid
         if (isNaN(price) || price < 0) {
           console.log(`Invalid price for artwork ${artwork.catalogue_no}: ${price}`);
           return null;
         }
         
-        // Get artist info - defaulting to empty string if no artist
         const artist = artwork.artists && artwork.artists[0] ? artwork.artists[0].name : '';
         
-        // Format description
         const parts = [];
         
-        // Add category
         if (artwork.category_name) {
           parts.push(`Category: ${artwork.category_name}`);
         }
         
-        // Add edition info for prints
         if (artwork.inventory_type === 'EDITION') {
           const editionMatch = artwork.catalogue_no.match(/\d+\/\d+$/);
           if (editionMatch) {
@@ -327,21 +145,18 @@ function formatArtworks(artworks) {
           }
         }
       
-        // Create the formatted artwork object
         const formattedArtwork = {
           name: artwork.catalogue_no,
           description: parts.join('\n'),
           price: price,
           artist: artist,
-          imageUrl: '' // Initialize with an empty string
+          imageUrl: ''
         };
 
-        // Assign the imageUrl if artwork.default_image exists
         if (artwork.default_image) {
           formattedArtwork.imageUrl = `https://dev.api.symbuild.com.au/api/${artwork.default_image}`;
         }
 
-        // console.log('Formatted artwork:', formattedArtwork);
         return formattedArtwork;
       } catch (error) {
         console.error('Error formatting artwork:', error, artwork);
@@ -351,36 +166,9 @@ function formatArtworks(artworks) {
     .filter(artwork => artwork !== null);
 }
 
-function formatTitle(title) {
-  return title.replace(/[\(\),]/g, '');
-}
-
-async function getExistingProduct() {
-  try {
-    // First get all products
-    const url = `${webflowUrl}/sites/${webflowSiteID}/products`;
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: getHeaders
-    });
-    
-    if (!res.ok) {
-      throw new Error(`Failed to fetch products: ${res.statusText}`);
-    }
-    
-    const products = await res.json();
-    console.log('Example of existing product structure:', JSON.stringify(products.items[0], null, 2));
-    return products.items[0]; // Return first product as example
-  } catch (error) {
-    console.error('Error fetching existing product:', error);
-    throw error;
-  }
-}
-
 async function updateWebflow(artwork) {
   const url = `${webflowUrl}/sites/${webflowSiteID}/products`;
   
-  // Sanitize the slug
   const slug = artwork.name.toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
@@ -392,7 +180,6 @@ async function updateWebflow(artwork) {
     artist: artwork.artist
   });
 
-  // Create product without trying to manage inventory settings
   const body = {
     "product": {
       "fields": {
@@ -409,7 +196,6 @@ async function updateWebflow(artwork) {
         "name": artwork.name,
         "slug": slug,
         "sku-values": {},
-        "main-image": artwork.imageUrl,
         "price": {
           "unit": "AUD",
           "value": artwork.price
@@ -420,12 +206,10 @@ async function updateWebflow(artwork) {
     }
   };
 
-  // Only add image if it exists
   if (artwork.imageUrl) {
     body.sku.fields["main-image"] = artwork.imageUrl;
   }
 
-  // Only add artist if it exists
   if (artwork.artist) {
     body.product.fields["artist"] = artwork.artist;
   }
@@ -464,14 +248,10 @@ async function updateWebflow(artwork) {
     throw error;
   }
 }
-// Update the initialize function to handle errors better
+
 async function initialize() {
   try {
-    //const token = await login();
-    //console.log("Login successful");
-    
-    // Setup webhook for new orders
-    await setupWebflowWebhook();
+    console.log("Starting sync process...");
     
     const artworks = formatArtworks(await getArtworks(samKey));
     const webflowArtworks = await getWebflowArtworks();
@@ -500,25 +280,20 @@ async function initialize() {
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
         console.error(`Failed to update artwork ${artwork.name}:`, error);
-        // Continue with next artwork instead of stopping the whole process
         continue;
       }
     }
 
-    console.log("Initialization complete");
+    console.log("Sync process complete");
+    process.exit(0);
   } catch (error) {
-    console.error("Initialization error:", error);
-    // If this is a critical error, you might want to exit the process
+    console.error("Sync process error:", error);
     process.exit(1);
   }
 }
 
-// Setup webhook endpoint
-app.post('/webhook', handleNewOrderWebhook);
-
-// Start the server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  initialize().catch(console.error);
+// Run the sync
+initialize().catch(error => {
+  console.error("Fatal error during sync:", error);
+  process.exit(1);
 });

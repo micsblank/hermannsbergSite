@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "type": "commonjs",
-  "repository": "https://github.com/rupertparry/sam-webflow-sync.git",
+  "repository": "https://github.com/micsblank/hermannsbergSite.git",
   "author": "Rupert Parry <rp@rupert.cloud>",
   "license": "MIT",
   "scripts": {
