@@ -473,7 +473,7 @@ async function initialize() {
     // Setup webhook for new orders
     await setupWebflowWebhook();
     
-    const artworks = formatArtworks(await getArtworks(token));
+    const artworks = formatArtworks(await getArtworks(samKey));
     const webflowArtworks = await getWebflowArtworks();
     
     const filteredArtworks = artworks.filter((artwork) => {
