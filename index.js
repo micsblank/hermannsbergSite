@@ -13,7 +13,7 @@ const samUrl = 'https://dev.api.symbuild.com.au/api';
 const webflowUrl = 'https://api.webflow.com';
 const webflowSiteID = process.env.WEBFLOW_SITE_ID;
 const webflowKey = process.env.WEBFLOW_KEY;
-const samKey = process.env.SAM_KEY_V3;
+const samKey = process.env.SAM_KEY;
 const webFlowSamGetOrder = process.env.SAM_API_FROM_WEBFLOW;
 
 // Initialize Webflow client
@@ -467,8 +467,8 @@ async function updateWebflow(artwork) {
 // Update the initialize function to handle errors better
 async function initialize() {
   try {
-    const token = await login();
-    console.log("Login successful");
+    //const token = await login();
+    //console.log("Login successful");
     
     // Setup webhook for new orders
     await setupWebflowWebhook();
